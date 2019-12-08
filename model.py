@@ -30,7 +30,7 @@ class cnn(object):
 
 		# print(self.y_cls)
 
-		weight1 = tf.Variable(tf.truncated_normal([1,1,3, 32], stddev = 0.1), name = 'weightcnn')
+		weight1 = tf.Variable(tf.truncated_normal([2,2,3, 32], stddev = 0.1), name = 'weightcnn')
 
 		bias1 = tf.Variable(tf.zeros([32]))
 
@@ -52,7 +52,7 @@ class cnn(object):
 
 		self.relu2 = tf.nn.relu(self.convolutional2) + bias2
 
-		self.pooling2 = tf.nn.max_pool(self.relu2, [1,3,3,1], [1,3,3,1], padding = 'SAME', name = 'max_pool2')
+		self.pooling2 = tf.nn.max_pool(self.relu2, [1,4,4,1], [1,4,4,1], padding = 'SAME', name = 'max_pool2')
 
 		print(self.pooling2)
 
@@ -70,6 +70,8 @@ class cnn(object):
 
 		num_feature = tf.reshape(self.pooling2, [-1, int(flat[1]) * int(flat[2]) * int(flat[3])])
 
+		print(num_feature)
+
 		# weightfc = tf.Variable(tf.truncated_normal([num_feature, num_label], stddev = 0.5), name = 'weightfc')
 
 		# biasfc = tf.Variable(tf.zeros([num_label]), name='biasfc')
@@ -77,15 +79,24 @@ class cnn(object):
 		# self.fc1 = tf.matmul(num_feature, weightfc) + biasfc
 
 
-		self.fc1 = tf.layers.dense(num_feature, num_label)
+
+		bath1 = tf.layers.batch_normalization(num_feature)
+		self.fc1 = tf.layers.dense(bath1, 64)
+		bath2 = tf.layers.batch_normalization(self.fc1)
+		self.fc2 = tf.layers.dense(bath2, num_label)
 
 		# self.fc2 = tf.layers.dense(self.fc1, num_label)
 
-		self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.fc1, labels=self.y))
-		self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001).minimize(self.cost, global_step=self.global_step)
+		
+		self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.fc2, labels=self.y))
+
+		print("loss : ", self.cost)
+		self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.01).minimize(self.cost)
 
 		# Accuracy
-		self.correct_pred = tf.equal(tf.argmax(self.fc1, 1), tf.argmax(self.y, 1))
+		self.correct_pred = tf.equal(tf.argmax(self.fc2, 1), tf.argmax(self.y, 1))
+
+		print("predicted labels : ", self.correct_pred)
 		self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32), name='accuracy')
 
 

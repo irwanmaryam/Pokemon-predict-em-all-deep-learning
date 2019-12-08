@@ -12,34 +12,31 @@ import helpers
 from model import cnn
 
 
-datadir = "/home/professor/Desktop/Irwan Project/image classification/PokemonData"
-datadir = pathlib.Path(datadir)
-
-image_count = len(list(datadir.glob('*/*.jpg')))
-print(image_count)
-
-classname = np.array([item.name for item in datadir.glob('*') if item.name!= "LICENSE.txt"])
-print(classname)
-label = list(classname)
-
-
+iteration = 1000
 batch_size = 32
-img_height = 28
-img_width = 28
-epoch = 50
-
-image_preprocess = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1./255)
-train_data = image_preprocess.flow_from_directory(directory = str(datadir), batch_size = batch_size, target_size = (img_width, img_height), classes = label)
+img_size = 128
+channel = 3
 
 
-image, label = next(train_data)
-X_train, X_test, y_train, y_test = train_test_split(image, label, test_size = 0.2, random_state = 42)
+datadir = "/home/professor/Desktop/Irwan Project/image classification/PokemonData"
+validation = 0.2
 
-num_label = y_train.shape[1]
 
-print(num_label)
+category = os.listdir(datadir)
+num_label = len(category)
 
-model = cnn(num_label)
+data = helpers.read_train_sets(datadir,img_size, category, validation_size = validation )
+
+print("train set:{}		".format(len(data.train.labels)))
+print("test set :{}		".format(len(data.valid.labels)))
+
+
+model = cnn(img_size, num_label)
+
+
+logdir = "./logs/nn_logs"
+
+
 
 #### model CNN #####
 
@@ -52,57 +49,38 @@ with tf.Session() as sess:
 	saver = tf.compat.v1.train.Saver(tf.global_variables())
 
 
-	# tf.summary.text("text", b)
+	tf.summary.scalar("accuracy", model.accuracy)
+	tf.summary.scalar("loss", model.cost)
+	merge = tf.summary.merge_all()
 
-	# tf.summary.histogram("weights", weight)
-	# tf.summary.histogram("fc1", model.fc)
-	# tf.summary.histogram("fc2", model.fc3)
-	# tf.summary.histogram("fc3", model.fc3)
+	train_write = tf.summary.FileWriter(logdir + "/train", sess.graph)
+	test_write = tf.summary.FileWriter(logdir + "/test", sess.graph)
 
-	# tf.summary.scalar("accuracy", accuracy)
-	# tf.summary.scalar("loss", loss)
-	# merge = tf.summary.merge_all()
-
-	# train_write = tf.summary.FileWriter(logdir + "/train", sess.graph)
-	# test_write = tf.summary.FileWriter(logdir + "/test", sess.graph)
-
-	# tf.global_variables_initializer().run()
+	tf.global_variables_initializer().run()
 
 
-	zipped_data = zip(X_train, y_train)
-	batches = helpers.batch_iter(list(zipped_data), batch_size, epoch)
-
-	for batch in batches:
-
-
-		Xbatch,Ybatch = zip(*batch)
-
-		 
-
-
-		train_dict = {model.x: Xbatch, model.y:Ybatch}
-
-		_,step, loss, accuracy = sess.run([model.optimizer, model.global_step, model.cost, model.accuracy], feed_dict = train_dict)
-
-		# train_write.add_summary(summary, step)
-
-		if step % 1 == 0:
-
-
-			print("step {0}: loss = {1:.5f} accuracy = {2:.5f}".format(step, loss, accuracy))
-
-		# current_step = tf.train.global_step(sess, model.global_step)
-
-		if step % 100 == 0:
-			
-			feed_dict = {model.x: xtest, model.y: ytest}
+	
+	for i in range(iteration):
 
 		
-			step ,accuracy, loss= sess.run([model.global_step, model.accuracy, modelcost], feed_dict = feed_dict)
-			# train_accuracy = sess.run(model.accuracy, feed_dict = feed_dict)
-				
-			print("Evaluate : ")
-			# test_write.add_summary(summary, step)
-			print("step {0}: loss = {1:.5f} accuracy = {2:.5f}".format(step, loss, accuracy))
-			# print(matrix)
+		Xbatch, Ybatch, _, cls_batch = data.train.next_batch(batch_size)
+		xValid, yValid, _, validcls_batch = data.valid.next_batch(batch_size)
 
+		
+		# print("step : ", i + 1)
+
+		train_dict = {model.x : Xbatch, model.y:Ybatch}
+
+		_,summary, accuracy, loss = sess.run([model.optimizer, merge, model.accuracy, model.cost], feed_dict = train_dict)
+
+		print("step : {0} loss = {1:.3f} accuracy = {2:.3f}".format(i+1, loss, accuracy))
+
+		if i % 100 == 0:
+			test_dict = {model.x:xValid, model.y:yValid}
+
+			summarry, accuracy, loss = sess.run([merge, model.accuracy, model.cost], feed_dict = test_dict)
+
+			print("evaluation")
+
+			print("step : {0} loss = {1:.3f} accuracy = {2:.3f}".format(i, loss, accuracy))
+	print("finish")
