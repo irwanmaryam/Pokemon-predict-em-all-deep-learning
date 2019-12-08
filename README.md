@@ -4,3 +4,11 @@ requirement : tensorflow 2.0, numpy, pandas.
 dataset : please change the directory of your image data
 
 more different model incoming
+
+please using stable version 
+
+Final Accuracy  =  75.8%.
+
+Loss = 0.023.
+
+iteration = 0.01.
