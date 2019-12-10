@@ -12,3 +12,5 @@ Final Accuracy  =  75.8%.
 Loss = 0.023.
 
 iteration = 0.01.
+
+if you want to use your own data, just change the datadir parameter
