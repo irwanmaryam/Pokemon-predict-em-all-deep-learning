@@ -12,34 +12,26 @@ import helpers
 from model import cnn
 
 
+iteration = 10
+batch_size = 25
+img_size = 28
+channel = 3
+
+
 datadir = "/home/professor/Desktop/Irwan Project/image classification/PokemonData"
-datadir = pathlib.Path(datadir)
-
-image_count = len(list(datadir.glob('*/*.jpg')))
-print(image_count)
-
-classname = np.array([item.name for item in datadir.glob('*') if item.name!= "LICENSE.txt"])
-print(classname)
-label = list(classname)
+validation = 0.2
 
 
-batch_size = 32
-img_height = 28
-img_width = 28
-epoch = 50
+category = os.listdir(datadir)
+num_label = len(category)
 
-image_preprocess = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1./255)
-train_data = image_preprocess.flow_from_directory(directory = str(datadir), batch_size = batch_size, target_size = (img_width, img_height), classes = label)
+data = helpers.read_train_sets(datadir,img_size, category, validation_size = validation )
+
+print("train set:		".format(len(data.train.labels)))
+print("test set 		".format(len(data.valid.labels)))
 
 
-image, label = next(train_data)
-X_train, X_test, y_train, y_test = train_test_split(image, label, test_size = 0.2, random_state = 42)
-
-num_label = y_train.shape[1]
-
-print(num_label)
-
-model = cnn(num_label)
+model = cnn(img_size, num_label)
 
 #### model CNN #####
 
@@ -68,41 +60,36 @@ with tf.Session() as sess:
 
 	# tf.global_variables_initializer().run()
 
+	step = 0
+	for i in range(iteration):
 
-	zipped_data = zip(X_train, y_train)
-	batches = helpers.batch_iter(list(zipped_data), batch_size, epoch)
-
-	for batch in batches:
-
-
-		Xbatch,Ybatch = zip(*batch)
-
-		 
+		Xbatch, Ybatch, _, cls_batch = data.train.next_batch(batch_size)
+		xValid, yValid, _, validcls_batch = data.valid.next_batch(batch_size)
 
 
-		train_dict = {model.x: Xbatch, model.y:Ybatch}
+		train_dict = {model.x: Xbatch, model.y: Ybatch}
 
-		_,step, loss, accuracy = sess.run([model.optimizer, model.global_step, model.cost, model.accuracy], feed_dict = train_dict)
+		test_dict = {model.x: xValid, model.y:yValid}
 
-		# train_write.add_summary(summary, step)
+		_, step, loss, accuracy = sess.run([model.optimizer, model.global_step, model.cost, model.accuracy], feed_dict = train_dict)
+
 
 		if step % 1 == 0:
 
 
+			
 			print("step {0}: loss = {1:.5f} accuracy = {2:.5f}".format(step, loss, accuracy))
 
-		# current_step = tf.train.global_step(sess, model.global_step)
-
 		if step % 100 == 0:
-			
-			feed_dict = {model.x: xtest, model.y: ytest}
 
-		
-			step ,accuracy, loss= sess.run([model.global_step, model.accuracy, modelcost], feed_dict = feed_dict)
+				
+			# feed_dict = {model.x: xtest, model.y: ytest, model.keep_drop:1.0}
+
+
+			step ,accuracy, loss= sess.run([model.global_step, model.accuracy, model.cost], feed_dict = test_dict)
 			# train_accuracy = sess.run(model.accuracy, feed_dict = feed_dict)
 				
 			print("Evaluate : ")
 			# test_write.add_summary(summary, step)
 			print("step {0}: loss = {1:.5f} accuracy = {2:.5f}".format(step, loss, accuracy))
 			# print(matrix)
-
